@@ -29,7 +29,7 @@ class foreman::params {
 
   # OS specific paths
   case $::operatingsystem {
-    redhat,centos,fedora,Scientific: {
+    redhat,centos,fedora,Scientific,Amazon: {
       $puppet_basedir  = '/usr/lib/ruby/site_ruby/1.8/puppet'
       $apache_conf_dir = '/etc/httpd/conf.d'
     }

@@ -20,7 +20,12 @@ class foreman::config {
         notify  => Class['foreman::service'],
         owner   => $foreman::params::user,
         require => [User[$foreman::params::user],
-                    Package['foreman-sqlite3']],
+                    Package['foreman-sqlite3'],
+		            Package["libev"],
+		            Package["ruby"],
+		            Package["rubygem-rack"],
+		            Package["rubygem-fastthread"],
+		            ],
       }
     }
     default: { }

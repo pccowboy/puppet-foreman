@@ -1,6 +1,6 @@
 class foreman::install::repos {
   case $::operatingsystem {
-    redhat,centos,fedora,Scientific: {
+    redhat,centos,fedora,Scientific,Amazon: {
       $repo_testing_enabled = $foreman::params::use_testing ? {
         true    => '1',
         default => '0',
@@ -16,6 +16,12 @@ class foreman::install::repos {
           baseurl  => 'http://yum.theforeman.org/test',
           enabled  => $repo_testing_enabled,
           gpgcheck => '0',
+        'epel':
+          mirrorlist => "https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=${architecture}",
+          descr => "Extra Packages for Enterprise Linux 6 - ${architecture}",
+          enabled => 1,
+          gpgcheck => 1,
+          gpgkey => "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-6",
       }
     }
     Debian,Ubuntu: {
