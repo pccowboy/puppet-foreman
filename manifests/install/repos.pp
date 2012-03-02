@@ -22,6 +22,10 @@ class foreman::install::repos {
           enabled => 1,
           gpgcheck => 1,
           gpgkey => "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-6";
+         'puppetlabs':
+           descr => "Puppet Labs Packages",
+           enabled => 1,
+	       priority => 4;
       }
     }
     Debian,Ubuntu: {
