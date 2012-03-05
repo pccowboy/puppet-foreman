@@ -9,7 +9,7 @@ class foreman::params {
   # Should foreman recive facts from puppet
   $facts        = true
   # Do you use storeconfig (and run foreman on the same database) ? (note: not required)
-  $storeconfigs = false
+  $storeconfigs = true
   # should foreman manage host provisioning as well
   $unattended   = true
   # Enable users authentication (default user:admin pw:changeme)
