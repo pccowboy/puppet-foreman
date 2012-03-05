@@ -18,5 +18,10 @@ class foreman::install {
     require => Class['foreman::install::repos'],
     notify  => Class['foreman::service'],
   }
-
+  
+  exec{"db-migrate":
+      command => "cd ${app_root} && RAILS_ENV=production rake db:migrate",
+      require => Package["foreman"],
+    }
+  
 }
