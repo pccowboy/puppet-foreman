@@ -19,26 +19,11 @@ class foreman::install {
     notify  => Class['foreman::service'],
   }
   
-  service { "puppet":
-  	enable 	=> true,
-  	ensure 	=> running,
-  	name 	=> "puppet",
-  	require => Package["puppet"],
-  }
-  
-  service { "puppetmaster":
-  	enable 	=> false,
-  	ensure 	=> stopped,
-  	name 	=> "puppetmaster",
-  	require => Package["puppet"],
-  }
-  
   exec{"db-migrate":
       command => "/usr/bin/rake RAILS_ENV=production db:migrate",
       cwd => $foreman::params::app_root,
       require => [Package["foreman"],
                   Service["puppet"],
-                  Service["puppetmaster"],
                  ],
     }
   
