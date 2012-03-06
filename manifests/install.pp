@@ -27,8 +27,8 @@ class foreman::install {
   }
   
   service { "puppetmaster":
-  	enable 	=> true,
-  	ensure 	=> running,
+  	enable 	=> false,
+  	ensure 	=> stopped,
   	name 	=> "puppetmaster",
   	require => Package["puppet"],
   }
