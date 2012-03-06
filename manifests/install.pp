@@ -22,8 +22,10 @@ class foreman::install {
   exec{"db-migrate":
       command => "/usr/bin/rake RAILS_ENV=production db:migrate",
       cwd => $foreman::params::app_root,
-      require => Package["foreman"],
-      require => Service["puppet", ensure => running],
+      require => [Package["foreman"],
+                  Service["puppet", ensure => running],
+                  Service["puppetmaster", ensure => running],
+                 ],
     }
   
 }
