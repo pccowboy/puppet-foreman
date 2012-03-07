@@ -25,5 +25,5 @@ class foreman::install {
       require => Service["puppet"],
       subscribe => Package["foreman"],
       refreshonly => true,
-    }
-    
+  }
+}
