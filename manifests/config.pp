@@ -14,7 +14,7 @@ class foreman::config {
 
   #Configure the Debian database with some defaults
   case $::operatingsystem {
-    Debian,Ubuntu: {
+    Debian,Ubuntu,Amazon: {
       file {'/etc/foreman/database.yml':
         content => template('foreman/database.yaml.erb'),
         notify  => Class['foreman::service'],
@@ -28,7 +28,7 @@ class foreman::config {
 		            ],
       }
     }
-    default: { }
+    default: { fail("${::hostname}: This module does not support operatingsystem ${::operatingsystem}") }
   }
 
   file { $foreman::params::app_root:
