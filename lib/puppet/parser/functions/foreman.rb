@@ -1,20 +1,33 @@
 # Query Foreman
-# example usage:
 #
-# query for hosts
-# ~~~~~~~~~~~~~~~
-# $myhosts = foreman("hosts","facts.domain ~ lab")
-# returns all hosts which have lab as part of their domain.
+# The foreman() parser takes a hash value with parameters to execute the query.
 #
-# or a more complex search term
-# $myhosts = foreman("hosts", "hostgroup ~ web and environment = production and status.failed = 0 and facts.timezone = EST and last_report < \"1 hour ago\""
+# To use foreman(), first create a hash. This sample hash will contain
+# parameters to let us get a list of 'hosts' that match our search parameters.
 #
-# query for facts
-# ~~~~~~~~~~~~~~~
-# get manufactor value for host "xyz"
-# $manufactor = foreman("fact_values", "name = manufacturer and host = xyz"
-# which in this case will return a hash
-# {"xyz":{"manufacturer":"LENOVO"}}
+# $f = { item         => 'hosts',
+#        search       => 'hostgroup=Grid',
+#        per_page     => '20',
+#        foreman_url  => 'https://foreman',
+#        foreman_user => 'my_api_foreman_user',
+#        foreman_pass => 'my_api_foreman_pass' }
+#
+# 'item' may be: hosts, puppetclasses, fact_values, environments, hostgroups
+# 'search' is your actual search query.
+# 'per_page' specifies the maxmnum number of results you'd like to receive. 
+#            This defaults to '20' which is consistent with what you'd get from
+#            Foreman if you didnt specify anything.
+# 'foreman_url' is your actual foreman server address
+# 'foreman_user' is the username of an account with API access
+# 'foreman_pass" is the password of an account with API access
+#
+# Then, use a variable to capture its output:
+# $hosts = foreman($f)
+#
+# Note: If you're using this in a template, you may be receiving an array of
+# hashes. So you might need to use two loops to get the values you need. 
+#
+# Happy Foreman API-ing!
 
 require "net/http"
 require "net/https"
@@ -23,31 +36,35 @@ require "timeout"
 
 module Puppet::Parser::Functions
   newfunction(:foreman, :type => :rvalue) do |args|
+    # parse an args hash
+    raise Puppet::ParseError, "Foreman: Must supply a Hash to foreman(), not a #{args[0].class}" unless args[0].is_a? Hash
+    args_hash    = args[0]
+    item         = args_hash["item"]
+    search       = args_hash["search"]
+    per_page     = args_hash["per_page"]     || "20"
+    foreman_url  = args_hash["foreman_url"]  || "https://localhost" # defaults: all-in-one
+    foreman_user = args_hash["foreman_user"] || "admin"             # has foreman/puppet
+    foreman_pass = args_hash["foreman_pass"] || "changeme"          # on the same box
+
     # extend this as required
     searchable_items = %w{ hosts puppetclasses fact_values environments hostgroups }
-    item, search = args
     raise Puppet::ParseError, "Foreman: Invalid item to search on: #{item}, must be one of #{searchable_items.join(", ")}." unless searchable_items.include?(item)
 
-    # URL to query
-    foreman_url  = "https://foreman"
-    foreman_user = "admin"
-    foreman_pass = "changeme"
-
-    uri = URI.parse(foreman_url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true if uri.scheme == 'https'
-
-    path = URI.escape("/#{item}?search=#{search}")
-    req = Net::HTTP::Get.new(path)
-    req.basic_auth(foreman_user, foreman_pass)
-    req['Content-Type'] = 'application/json'
-    req['Accept'] = 'application/json'
-
     begin
+      path = URI.escape("/api/#{item}?search=#{search}&per_page=#{per_page}")
+      uri = URI.parse(foreman_url)
+
+      req = Net::HTTP::Get.new(path)
+      req.basic_auth(foreman_user, foreman_pass)
+      req['Content-Type'] = 'application/json'
+      req['Accept'] = 'application/json'
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true if uri.scheme == 'https'
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE if http.use_ssl?
       Timeout::timeout(5) { PSON.parse http.request(req).body }
     rescue Exception => e
-      raise Puppet::ParseError, "Failed to contact Foreman #{e}"
+      raise Puppet::ParseError, "Failed to contact Foreman at #{foreman_url}: #{e}"
     end
-
   end
 end

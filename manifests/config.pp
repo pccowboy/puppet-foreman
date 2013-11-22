@@ -1,59 +1,78 @@
+# Configure foreman
 class foreman::config {
   Cron {
-    require     => User[$foreman::params::user],
-    user        => $foreman::params::user,
-    environment => "RAILS_ENV=${foreman::params::environment}",
+    require     => User[$foreman::user],
+    user        => $foreman::user,
+    environment => "RAILS_ENV=${foreman::environment}",
+  }
+
+  concat_build {'foreman_settings':
+    order => ['*.yaml'],
+  }
+
+  concat_fragment {'foreman_settings+01-header.yaml':
+    content => template('foreman/settings.yaml.erb'),
   }
 
   file {'/etc/foreman/settings.yaml':
-    content => template('foreman/settings.yaml.erb'),
+    source  => concat_output('foreman_settings'),
+    require => Concat_build['foreman_settings'],
     notify  => Class['foreman::service'],
-    owner   => $foreman::params::user,
-    require => User[$foreman::params::user],
+    owner   => 'root',
+    group   => $foreman::group,
+    mode    => '0640',
   }
 
-  #Configure the Debian database with some defaults
+  file { '/etc/foreman/database.yml':
+    owner   => 'root',
+    group   => $foreman::group,
+    mode    => '0640',
+    content => template('foreman/database.yml.erb'),
+    notify  => Class['foreman::service'],
+  }
+
   case $::operatingsystem {
-    Debian,Ubuntu,Amazon: {
-      file {'/etc/foreman/database.yml':
-        content => template('foreman/database.yaml.erb'),
-        notify  => Class['foreman::service'],
-        owner   => $foreman::params::user,
-        require => [User[$foreman::params::user],
-                    Package['foreman-sqlite3'],
-		            Package["libev"],
-		            Package["ruby"],
-		            Package["rubygem-rack"],
-		            Package["rubygem-fastthread"],
-		            ],
-      }
+    Debian,Ubuntu: {
+      $init_config = '/etc/default/foreman'
+      $init_config_tmpl = 'foreman.default'
     }
-    default: { fail("${::hostname}: This module does not support operatingsystem ${::operatingsystem}") }
+    default: {
+      $init_config = '/etc/sysconfig/foreman'
+      $init_config_tmpl = 'foreman.sysconfig'
+    }
+  }
+  file { $init_config:
+    ensure  => present,
+    content => template("foreman/${init_config_tmpl}.erb"),
+    require => Class['foreman::install'],
+    before  => Class['foreman::service'],
   }
 
-  file { $foreman::params::app_root:
+  file { $foreman::app_root:
     ensure  => directory,
   }
 
-  user { $foreman::params::user:
+  user { $foreman::user:
     ensure  => 'present',
     shell   => '/sbin/nologin',
     comment => 'Foreman',
-    home    => $foreman::params::app_root,
+    home    => $foreman::app_root,
+    gid     => $foreman::group,
+    groups  => $foreman::user_groups,
     require => Class['foreman::install'],
   }
 
-  # cleans up the session entries in the database
-  # if you are using fact or report importers, this creates a session per request
-  # which can easily result with a lot of old and unrequired in your database
-  # eventually slowing it down.
-  cron{'clear_session_table':
-    command => "(cd ${foreman::params::app_root} && rake db:sessions:clear)",
-    minute  => '15',
-    hour    => '23',
+  # remove crons previously installed here, they've moved to the package's
+  # cron.d file
+  cron { ['clear_session_table', 'expire_old_reports', 'daily summary']:
+    ensure  => absent,
   }
 
-  if $foreman::params::reports { include foreman::config::reports }
-  if $foreman::params::enc     { include foreman::config::enc }
-  if $foreman::params::passenger  { include foreman::config::passenger }
+  if $foreman::passenger  {
+    class{'foreman::config::passenger':
+      listen_on_interface => $foreman::passenger_interface,
+      scl_prefix          => $foreman::passenger_scl,
+    }
+  }
+
 }

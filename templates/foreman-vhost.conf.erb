@@ -1,27 +1,41 @@
-<VirtualHost <%= ipaddress %>:80>
-  ServerName <%= fqdn %>
-  ServerAlias foreman
-  DocumentRoot <%= scope.lookupvar 'foreman::params::app_root' %>/public
-  PassengerAppRoot <%= scope.lookupvar 'foreman::params::app_root' %>
+<%= ERB.new(File.read(File.expand_path("_header.erb",File.dirname(file)))).result(binding) -%>
 
-  RailsAutoDetect On
+<VirtualHost <%= @listen_interface %>:80>
+  ServerName <%= @fqdn %>
+  ServerAlias foreman
+
+  DocumentRoot <%= scope.lookupvar 'foreman::app_root' %>/public
+  PassengerAppRoot <%= scope.lookupvar 'foreman::app_root' %>
+<% if @scl_prefix and !@scl_prefix.empty? -%>
+  PassengerRuby /usr/bin/<%= @scl_prefix -%>-ruby
+<% end -%>
+
   AddDefaultCharset UTF-8
+
+  <%= scope.function_template(['foreman/_assets.conf.erb']) %>
 
 </VirtualHost>
 
-<VirtualHost <%= ipaddress %>:443>
-  ServerName <%= fqdn %>
+<% if scope.lookupvar 'foreman::ssl' -%>
+<VirtualHost <%= @listen_interface %>:443>
+  ServerName <%= @fqdn %>
   ServerAlias foreman
 
-  RailsAutoDetect On
-  DocumentRoot <%= scope.lookupvar 'foreman::params::app_root' %>/public
-  PassengerAppRoot <%= scope.lookupvar 'foreman::params::app_root' %>
+  DocumentRoot <%= scope.lookupvar 'foreman::app_root' %>/public
+  PassengerAppRoot <%= scope.lookupvar 'foreman::app_root' %>
+<% if @scl_prefix and !@scl_prefix.empty? -%>
+  PassengerRuby /usr/bin/<%= @scl_prefix -%>-ruby
+<% end -%>
+
+  AddDefaultCharset UTF-8
+
+  <%= scope.function_template(['foreman/_assets.conf.erb']) %>
 
   # Use puppet certificates for SSL
 
   SSLEngine On
-  SSLCertificateFile      /var/lib/puppet/ssl/certs/<%= fqdn %>.pem
-  SSLCertificateKeyFile   /var/lib/puppet/ssl/private_keys/<%= fqdn %>.pem
+  SSLCertificateFile      /var/lib/puppet/ssl/certs/<%= @fqdn %>.pem
+  SSLCertificateKeyFile   /var/lib/puppet/ssl/private_keys/<%= @fqdn %>.pem
   SSLCertificateChainFile /var/lib/puppet/ssl/certs/ca.pem
   SSLCACertificateFile    /var/lib/puppet/ssl/certs/ca.pem
   SSLVerifyClient         optional
@@ -29,3 +43,4 @@
   SSLVerifyDepth          3
 
 </VirtualHost>
+<% end -%>

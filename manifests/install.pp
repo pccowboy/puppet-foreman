@@ -1,29 +1,41 @@
+# Install the needed packages for foreman
 class foreman::install {
-  include foreman::install::repos
+  if ! $foreman::custom_repo {
+    foreman::install::repos { 'foreman':
+      repo     => $foreman::repo,
+      gpgcheck => $foreman::gpgcheck,
+    }
+  }
 
-  case $::operatingsystem {
-    Debian,Ubuntu,Amazon:  {
-      package {'foreman-sqlite3':
-        ensure  => latest,
-        require => Class['foreman::install::repos'],
-        notify  => [Class['foreman::service'],
-                    Package['foreman']],
+  $repo = $foreman::custom_repo ? {
+    true    => [],
+    default => Foreman::Install::Repos['foreman'],
+  }
+
+  case $foreman::db_type {
+    sqlite: {
+      case $::operatingsystem {
+        Debian,Ubuntu: { $package = 'foreman-sqlite3' }
+        default:       { $package = 'foreman-sqlite' }
       }
     }
-    default: {}
+    postgresql: {
+      $package = 'foreman-postgresql'
+    }
+    mysql: {
+      $package = 'foreman-mysql2'
+    }
   }
 
-  package {'foreman':
-    ensure  => latest,
-    require => Class['foreman::install::repos'],
-    notify  => Class['foreman::service'],
+  package { $package:
+    ensure  => $foreman::version,
+    require => $repo,
   }
-  
-  exec{"db-migrate":
-      command => "/usr/bin/rake RAILS_ENV=production db:migrate",
-      cwd => $foreman::params::app_root,
-      require => Service["puppet"],
-      subscribe => Package["foreman"],
-      refreshonly => true,
+
+  if $foreman::selinux or (str2bool($::selinux) and $foreman::selinux != false) {
+    package { 'foreman-selinux':
+      ensure  => $foreman::version,
+      require => $repo,
+    }
   }
 }
